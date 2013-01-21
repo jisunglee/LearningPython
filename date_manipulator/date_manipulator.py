@@ -2,11 +2,15 @@ import datetime
 import calendar
 
 class date_manipulator(object):
+    """Class that provides date manipulation methods."""
+
+    def __init__(self, market):
+        self.market_type = ['ndq', 'cme', 'kcbt']
+        assert market in self.market_type
+        self.market = market
 
     def is_businessday(self, date):
         """Returns True/False if a day is a business day."""
-        year, month, day = date
-        datetime_obj = datetime.date(year, month, day)
         if self.is_holiday(date):
             return False
         else:
@@ -17,7 +21,7 @@ class date_manipulator(object):
         year, month, day = date
         datetime_obj = datetime.date(year, month, day)
         
-        Good_Friday_list = [
+        good_friday_list = [
             (1970,3,27),(1971,4,9),(1972,3,31),(1973,4,20),(1974,4,12),
             (1975,3,28),(1976,4,16),(1977,4,8),(1978,3,24),(1979,4,13),
             (1980,4,4),(1981,4,17),(1982,4,9),(1983,4,1),(1984,4,20),
@@ -49,21 +53,47 @@ class date_manipulator(object):
             self.nth_wkday((year, 11, 1), 4, 5), # Black Friday
             ]
 
+        market_specific_holiday = {
+            'ndq' : [ (1972,12,28),(1973,1,25),(1977,7,14),(1985,9,27),
+                      (1994,4,27),(2001,9,11),(2001,9,12),(2001,9,13),
+                      (2001,9,14),(2004,6,11),(2007,1,2),(2012,10,29),
+                      (2012,10,30)], # Nasdaq has unexpected holidays
+            'cme' : [ self.nth_wkday((year, 10, 1),2,1), #Columbus Day
+                      (year, 11, 11)],                   #Veterans Day
+            'kcbt' : []
+            }
+            
+
         if datetime_obj.weekday() > 4:
             return True
-        elif date in Good_Friday_list:
+        elif date in good_friday_list:
             return True
         elif date in relative_date_holiday:
+            return True
+        elif date in market_specific_holiday[self.market]:
             return True
         elif (month, day) in fixed_date_holiday:
             return True
         else:
             return False
             
-    def add_bday(self):
-        pass
-    
-    def add_cday(self, date, days_to_move):
+    def add_bday(self, date, delta):
+        """Add delta businessdays to given date."""
+        year, month, day = date
+        datetime_obj = datetime.date(year, month, day)
+        added_bdays = 0
+        step = 1 if delta > 0 else -1
+        while added_bdays < delta:
+            datetime_obj += datetime.timedelta(days = step)
+            if not self.is_holiday(
+                (datetime_obj.year, datetime_obj.month, datetime_obj.day)):
+                added_bdays += 1
+            
+        return (datetime_obj.year, datetime_obj.month, datetime_obj.day)
+
+    @staticmethod
+    def add_cday(date, days_to_move):
+        """Add calendar days to given date."""
         year, month, day = date
         datetime_obj = datetime.date(year, month, day)
         
@@ -93,8 +123,8 @@ class date_manipulator(object):
         """
         year, month, day = date
         
-        year_chg = month_chg/12
-        month_chg = month_chg%12
+        year_chg = month_chg / 12
+        month_chg = month_chg % 12
             
         return (year+year_chg, month+month_chg, day)
         
